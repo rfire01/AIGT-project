@@ -34,6 +34,29 @@ def filter_atleast_rounds(df, r):
     return df
 
 
+def filter_remove_random(df):
+    """
+        Filter From DataFrame all voters that vote randomly.
+
+        Args:
+             df(DataFrame): Holds the data from all rounds.
+
+        Return:
+             DataFrame. Filtered data.
+
+        Voter considered to vote randomly if he voted to his worst option
+        more than once.
+    """
+    grouped = df.groupby(['VoterID'])
+
+    for ID, voter in grouped:
+        dom_actions = voter[voter.Action == 3]
+        if len(dom_actions) > 1:
+            df = df[df.VoterID != ID]
+
+    return df
+
+
 def run_filters(files, output_path):
     """
         Run all filtes on the combination of all files.
@@ -51,6 +74,7 @@ def run_filters(files, output_path):
 
     df = filter_under_participants(df, 10000)
     df = filter_atleast_rounds(df, 15)
+    df = filter_remove_random(df)
 
     writer = pd.ExcelWriter(output_path)
     df.to_excel(writer, 'Sheet1', index=False)
