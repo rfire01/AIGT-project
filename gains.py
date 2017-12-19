@@ -42,7 +42,6 @@ def vote_gain_single_candidate(distribution, utilities, candidate_index):
         gain = gain + tie_prob * (chosen_utility - tie_utility)
         gain = gain + close_tie_prob * (tie_utility - opponent_utility)
 
-    print gain
     return gain
 
 

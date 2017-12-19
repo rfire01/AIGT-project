@@ -56,7 +56,7 @@ def close_tie_probability(distribution, candidate1, candidate2):
     candidates_probability = [distribution[cand] / total_amount for cand in
                               [candidate1, candidate2, candidate3]]
 
-    start_value = int(math.ceil((total_amount + 1) / 3.0)) + 1
+    start_value = int(math.floor((total_amount + 1) / 3.0)) + 1
     close_tie_probability_value = 0
     for votes in range(start_value, int(total_amount + 1) / 2 + 1):
         state = [votes - 1, votes, total_amount - 2 * votes + 1]
