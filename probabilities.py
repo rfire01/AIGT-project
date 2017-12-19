@@ -2,6 +2,30 @@ import math
 from scipy.stats import multinomial
 
 
+def pmf(distribution, n, probabilities):
+    """
+        Calculate multinominal pmf for given distribution and probabilities.
+
+        Args:
+            distribution(list): Distribution over three candidates.
+            probabilities(list): probability for each value in distribution.
+
+        Return:
+              float. probability of this distribution.
+
+        The probability to randomized each of the items accordingly to
+        distribution, where each item probability given in probabilities.
+    """
+    probability = math.factorial(n)
+    for amount in distribution:
+        probability = probability / math.factorial(amount)
+
+    for amount, prob in zip(distribution, probabilities):
+        probability = probability * math.pow(prob, amount)
+
+    return probability
+
+
 def tie_probability(distribution, candidate1, candidate2):
     """
     Calculate the probability for tie between 2 candidates.
@@ -22,12 +46,17 @@ def tie_probability(distribution, candidate1, candidate2):
     candidates_probability = [distribution[cand] / total_amount for cand in
                               [candidate1, candidate2, candidate3]]
 
+    if 0 in candidates_probability:
+        pmf_func = pmf
+    else:
+        pmf_func = multinomial.pmf
+
     start_value = int(math.ceil(total_amount / 3.0))
     tie_probability_value = 0
     for votes in range(start_value, int(total_amount) / 2 + 1):
         state = [votes, votes, total_amount - 2 * votes]
-        state_probability = multinomial.pmf(state, total_amount,
-                                            candidates_probability)
+        state_probability = pmf_func(state, total_amount,
+                                     candidates_probability)
         tie_probability_value += state_probability
 
     return tie_probability_value
@@ -56,12 +85,17 @@ def close_tie_probability(distribution, candidate1, candidate2):
     candidates_probability = [distribution[cand] / total_amount for cand in
                               [candidate1, candidate2, candidate3]]
 
+    if 0 in candidates_probability:
+        pmf_func = pmf
+    else:
+        pmf_func = multinomial.pmf
+
     start_value = int(math.floor((total_amount + 1) / 3.0)) + 1
     close_tie_probability_value = 0
     for votes in range(start_value, int(total_amount + 1) / 2 + 1):
         state = [votes - 1, votes, total_amount - 2 * votes + 1]
-        state_probability = multinomial.pmf(state, total_amount,
-                                            candidates_probability)
+        state_probability = pmf_func(state, total_amount,
+                                     candidates_probability)
         close_tie_probability_value += state_probability
 
     return close_tie_probability_value
