@@ -59,7 +59,7 @@ def filter_remove_random(df):
 
 def run_filters(files, output_path):
     """
-        Run all filtes on the combination of all files.
+        Run all filters on the combination of all files.
 
         Args:
              files(list): All excel files need to be filtered.
