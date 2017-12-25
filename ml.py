@@ -54,7 +54,7 @@ if __name__ == "__main__":
                          [v2 for v2 in voter['VotesCand2PreVote']],
                          [v2 for v2 in voter['NumVotes']]))
 
-    # user_arr = filter(filter_users, user_arr)
+    user_arr = filter(filter_users, user_arr)
     print 'all_size: {}'.format(len(user_arr))
     for _ in xrange(10):
         train, test = train_test_split(user_arr, test_size=0.2)
