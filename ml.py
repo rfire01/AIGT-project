@@ -28,6 +28,16 @@ def create_features(user, wanted_scenario='F'):
 
     return result_arr
 
+def filter_users(user):
+    scenarios, actions, gains, votes1, votes2, total_votes = user
+    m_a = -1
+    for s,a in izip(scenarios, actions):
+        if s == 'F':
+            if m_a == -1:
+                m_a = a
+            elif m_a != a:
+                return False
+    return True
 
 if __name__ == "__main__":
     data_dir = os.path.join(os.path.abspath('.'), 'OneShot')
@@ -44,9 +54,10 @@ if __name__ == "__main__":
                          [v2 for v2 in voter['VotesCand2PreVote']],
                          [v2 for v2 in voter['NumVotes']]))
 
+    user_arr = filter(filter_users, user_arr)
+    print 'all_size: {}'.format(len(user_arr))
     for _ in xrange(10):
         train, test = train_test_split(user_arr, test_size=0.2)
-
         train_set = reduce(lambda x, y: x + y, map(create_features, train))
         test_set = reduce(lambda x, y: x + y, map(create_features, test))
         feature_number = len(train_set[0]) - 1
