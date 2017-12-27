@@ -1,11 +1,14 @@
 import os
-from itertools import izip
-
-from sklearn import svm
-
-import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
+import pandas as pd
+from sklearn import svm
+from itertools import izip
+from sklearn.model_selection import KFold
+from sklearn.metrics import confusion_matrix
+
+RANK_DIST = {1: lambda df: df.VotesCand1PreVote,
+             2: lambda df: df.VotesCand2PreVote,
+             3: lambda df: df.VotesCand3PreVote}
 
 
 def create_features(user, wanted_scenario='F'):
@@ -20,13 +23,13 @@ def create_features(user, wanted_scenario='F'):
 
             result_arr.append([mean_action_value,
                                np.mean(gains[:index] + gains[index + 1:]),
-                               np.mean([((v1 + v2) / t_v) for v1, v2, t_v in
-                                        izip(votes1, votes2, total_votes)]),
-                               float(votes1[index]) / total_votes[index],
+                               float(votes1[index] - votes2[index]) / total_votes[index],
+
 
                                a]) # <- result
 
     return result_arr
+
 
 def filter_users(user):
     scenarios, actions, gains, votes1, votes2, total_votes = user
@@ -39,6 +42,7 @@ def filter_users(user):
                 return False
     return True
 
+
 if __name__ == "__main__":
     data_dir = os.path.join(os.path.abspath('.'), 'OneShot')
     data_path = os.path.join(data_dir, 'PreML.xlsx')
@@ -50,22 +54,37 @@ if __name__ == "__main__":
         user_arr.append(([s for s in voter['Scenario']],
                          [ac for ac in voter['Action']],
                          [g for g in voter['CmpGain']],
-                         [v1 for v1 in voter['VotesCand1PreVote']],
-                         [v2 for v2 in voter['VotesCand2PreVote']],
+                         [v1 for v1 in voter.apply(lambda row: RANK_DIST[row['Pref1']](row), axis=1)],
+                         [v2 for v2 in voter.apply(lambda row: RANK_DIST[row['Pref2']](row), axis=1)],
                          [v2 for v2 in voter['NumVotes']]))
 
-    user_arr = filter(filter_users, user_arr)
-    print 'all_size: {}'.format(len(user_arr))
-    for _ in xrange(10):
-        train, test = train_test_split(user_arr, test_size=0.2)
-        train_set = reduce(lambda x, y: x + y, map(create_features, train))
-        test_set = reduce(lambda x, y: x + y, map(create_features, test))
-        feature_number = len(train_set[0]) - 1
+    features = reduce(lambda x, y: x + y, map(create_features, user_arr))
+    inputs = np.array([x[:-1] for x in features])
+    outputs = np.array([x[-1] for x in features])
+    kf = KFold(n_splits=10)
+
+
+    cm =[]
+    for train_index, test_index in kf.split(inputs):
+        in_train, in_test = inputs[train_index], inputs[test_index]
+        out_train, out_test = outputs[train_index], outputs[test_index]
 
         svc = svm.SVC(kernel='linear')
-        svc.fit([x[:feature_number] for x in train_set], [x[feature_number] for x in train_set])
+        svc.fit(in_train, out_train)
 
-        result = svc.predict([x[:feature_number] for x in test_set])
+        prediction = svc.predict(in_test)
+        cm.append(confusion_matrix(out_test, prediction, labels=[1, 2, 3]))
 
-        print 'rate: {}'.format(float(
-            sum([1 for x, y in izip(test_set, result) if x[feature_number] == y])) / len(result))
+    final_cm = sum(cm)
+    print sum(cm)
+    tp = final_cm[0][0]
+    fn = final_cm[0][1] + final_cm[0][2]
+    fp = final_cm[1][0] + final_cm[2][0]
+
+    precision = float(tp) / (tp + fp)
+    recall = float(tp) / (tp + fn)
+    fmeasure = 2 * precision * recall / (precision + recall)
+
+    print precision
+    print recall
+    print fmeasure
