@@ -11,11 +11,29 @@ RANK_DIST = {1: lambda df: df.VotesCand1PreVote,
              3: lambda df: df.VotesCand3PreVote}
 
 
+def count_dlb(scenarios, actions):
+    count = 0.0
+    for index, scenario in enumerate(scenarios):
+        if scenario == "D" or scenario == "F":
+            count += actions[index] == 3
+
+    return count / 2.0
+
+
+def count_trt(scenarios, actions):
+    count = 0.0
+    for index, scenario in enumerate(scenarios):
+        if scenario != "A" and scenario != "B":
+            count += actions[index] == 1
+
+    return count
+
+
 def create_features(user, wanted_scenario='F'):
-    scenarios, actions, gains, votes1, votes2, total_votes = user
+    scenarios, actions, gains, votes1, votes2, votes3, total_votes = user
     result_arr = []
     for index, vote_result in enumerate(izip(scenarios, actions, gains)):
-        s, a, _ = vote_result
+        s, a, g = vote_result
         if s == wanted_scenario:
             mean_action_value = np.mean(map(
                 lambda x: (3 - x),
@@ -24,6 +42,11 @@ def create_features(user, wanted_scenario='F'):
             result_arr.append([mean_action_value,
                                np.mean(gains[:index] + gains[index + 1:]),
                                float(votes1[index] - votes2[index]) / total_votes[index],
+                               g * g,
+                               count_dlb(scenarios[:index] + scenarios[index + 1:],
+                                        actions[:index] + actions[index + 1:]),
+                               # count_trt(scenarios[:index] + scenarios[index + 1:],
+                               #           actions[:index] + actions[index + 1:]),
 
 
                                a]) # <- result
@@ -32,14 +55,16 @@ def create_features(user, wanted_scenario='F'):
 
 
 def filter_users(user):
-    scenarios, actions, gains, votes1, votes2, total_votes = user
-    m_a = -1
-    for s,a in izip(scenarios, actions):
+    scenarios, actions, gains, votes1, votes2, votes3, total_votes = user
+    m_a = {}
+    for i, values in enumerate(izip(scenarios, actions, votes1, votes2, votes3)):
+        s, a, v1, v2, v3 = values
         if s == 'F':
-            if m_a == -1:
-                m_a = a
-            elif m_a != a:
-                return False
+            if (v1, v2, v3) in m_a:
+                if a != m_a[(v1, v2, v3)]:
+                    return False
+            else:
+                m_a[(v1, v2, v3)] = a
     return True
 
 
@@ -56,7 +81,14 @@ if __name__ == "__main__":
                          [g for g in voter['CmpGain']],
                          [v1 for v1 in voter.apply(lambda row: RANK_DIST[row['Pref1']](row), axis=1)],
                          [v2 for v2 in voter.apply(lambda row: RANK_DIST[row['Pref2']](row), axis=1)],
+                         [v2 for v2 in
+                          voter.apply(lambda row: RANK_DIST[row['Pref3']](row),
+                                      axis=1)],
                          [v2 for v2 in voter['NumVotes']]))
+
+    # print 'before_filter_size: {}'.format(len(user_arr))
+    # user_arr = filter(filter_users, user_arr)
+    # print 'all_size: {}'.format(len(user_arr))
 
     features = reduce(lambda x, y: x + y, map(create_features, user_arr))
     inputs = np.array([x[:-1] for x in features])
