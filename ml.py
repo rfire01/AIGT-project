@@ -42,11 +42,13 @@ def create_features(user, wanted_scenario='F'):
             result_arr.append([mean_action_value,
                                np.mean(gains[:index] + gains[index + 1:]),
                                float(votes1[index] - votes2[index]) / total_votes[index],
+                               float(votes1[index]) / votes2[index],
                                g,
                                smart_cmp,
                                contain_dlb(scenarios[:index] + scenarios[index + 1:],
                                         actions[:index] + actions[index + 1:]),
                                count_trt(actions[:index] + actions[index + 1:]),
+
 
 
                                a]) # <- result
