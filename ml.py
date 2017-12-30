@@ -11,22 +11,17 @@ RANK_DIST = {1: lambda df: df.VotesCand1PreVote,
              3: lambda df: df.VotesCand3PreVote}
 
 
-def count_dlb(scenarios, actions):
+def contain_dlb(scenarios, actions):
     count = 0.0
     for index, scenario in enumerate(scenarios):
         if scenario == "D" or scenario == "F":
             count += actions[index] == 3
 
-    return count / 2.0
+    return count == 1
 
 
-def count_trt(scenarios, actions):
-    count = 0.0
-    for index, scenario in enumerate(scenarios):
-        if scenario != "A" and scenario != "B":
-            count += actions[index] == 1
-
-    return count
+def count_trt(actions):
+    return sum([1 for a in actions if a == 1])
 
 
 def create_features(user, wanted_scenario='F'):
@@ -39,14 +34,19 @@ def create_features(user, wanted_scenario='F'):
                 lambda x: (3 - x),
                 actions[:index] + actions[index + 1:]))
 
+            if g > 0:
+                smart_cmp = a == 2
+            else:
+                smart_cmp = a == 1
+
             result_arr.append([mean_action_value,
                                np.mean(gains[:index] + gains[index + 1:]),
                                float(votes1[index] - votes2[index]) / total_votes[index],
-                               g * g,
-                               count_dlb(scenarios[:index] + scenarios[index + 1:],
+                               g,
+                               smart_cmp,
+                               contain_dlb(scenarios[:index] + scenarios[index + 1:],
                                         actions[:index] + actions[index + 1:]),
-                               # count_trt(scenarios[:index] + scenarios[index + 1:],
-                               #           actions[:index] + actions[index + 1:]),
+                               count_trt(actions[:index] + actions[index + 1:]),
 
 
                                a]) # <- result
