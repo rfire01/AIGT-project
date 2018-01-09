@@ -51,7 +51,6 @@ def create_features(user, wanted_scenario='F'):
                                contain_dlb(scenarios[:index] + scenarios[index + 1:],
                                         actions[:index] + actions[index + 1:]),
                                count_trt(actions[:index] + actions[index + 1:]),
-
                                a]) # <- result
 
     return result_arr
