@@ -5,17 +5,12 @@ import pandas as pd
 from sklearn import svm
 from itertools import izip
 
-from sklearn.ensemble import AdaBoostClassifier
-from sklearn.ensemble import BaggingClassifier
 from sklearn.model_selection import KFold
 from sklearn.metrics import confusion_matrix
 
 RANK_DIST = {1: lambda df: df.VotesCand1PreVote,
              2: lambda df: df.VotesCand2PreVote,
              3: lambda df: df.VotesCand3PreVote}
-ACTION_TO_CAN = {1: lambda df: df.Pref1,
-             2: lambda df: df.Pref2,
-             3: lambda df: df.Pref3}
 
 
 def contain_dlb(scenarios, actions):
@@ -31,18 +26,8 @@ def count_trt(actions):
     return sum([1 for a in actions if a == 1])
 
 
-def hackish(list1, list2):
-    sum = 0
-    for x,y in zip(list1, list2):
-        if type(x) == int:
-           sum+=1
-        elif str(y) in x:
-            sum+=1
-
-    return float(sum) / len(list1)
-
 def create_features(user, wanted_scenario='F'):
-    scenarios, actions, gains, votes1, votes2, votes3, total_votes, winners, candidates_chosen= user
+    scenarios, actions, gains, votes1, votes2, votes3, total_votes = user
     result_arr = []
     for index, vote_result in enumerate(izip(scenarios, actions, gains)):
         s, a, g = vote_result
@@ -56,12 +41,6 @@ def create_features(user, wanted_scenario='F'):
             else:
                 smart_cmp = a == 1
 
-
-            filtered_winners = winners[:index] + winners[index + 1:]
-            candidates_chosen_filtered = candidates_chosen[:index] + candidates_chosen[index + 1:]
-            # bla = hackish(filtered_winners, candidates_chosen_filtered)
-
-
             result_arr.append(
                                [mean_action_value,
                                np.mean(gains[:index] + gains[index + 1:]),
@@ -73,25 +52,9 @@ def create_features(user, wanted_scenario='F'):
                                         actions[:index] + actions[index + 1:]),
                                count_trt(actions[:index] + actions[index + 1:]),
 
-
                                a]) # <- result
 
     return result_arr
-
-
-def filter_users(user):
-    scenarios, actions, gains, votes1, votes2, votes3, total_votes = user
-    m_a = {}
-    for i, values in enumerate(izip(scenarios, actions, votes1, votes2, votes3)):
-        s, a, v1, v2, v3 = values
-        if s == 'F':
-            if (v1, v2, v3) in m_a:
-                if a != m_a[(v1, v2, v3)]:
-                    return False
-            else:
-                m_a[(v1, v2, v3)] = a
-    return True
-
 
 def predict_results(data_path, feature, kernel='linear'):
     df = pd.read_excel(data_path)
@@ -110,15 +73,8 @@ def predict_results(data_path, feature, kernel='linear'):
                          [v2 for v2 in
                           voter.apply(lambda row: RANK_DIST[row['Pref3']](row),
                                       axis=1)],
-                         [v2 for v2 in voter['NumVotes']],
-                         [v for v in voter['Winner']],
-                         [v1 for v1 in
-                        voter.apply(lambda row: ACTION_TO_CAN[row['Action']](row), axis=1)]
-                         ))
+                         [v2 for v2 in voter['NumVotes']]))
 
-    # print 'before_filter_size: {}'.format(len(user_arr))
-    # user_arr = filter(filter_users, user_arr)
-    # print 'all_size: {}'.format(len(user_arr))
     scenario_feature = functools.partial(create_features,
                                          wanted_scenario=feature)
     features = reduce(lambda x, y: x + y, map(scenario_feature, user_arr))
@@ -130,7 +86,7 @@ def predict_results(data_path, feature, kernel='linear'):
         in_train, in_test = inputs[train_index], inputs[test_index]
         out_train, out_test = outputs[train_index], outputs[test_index]
 
-        svc = svm.SVC(kernel=kernel)  # kernel='poly' get better result with long run time
+        svc = svm.SVC(kernel=kernel)
         svc.fit(in_train, out_train)
 
         prediction = svc.predict(in_test)
