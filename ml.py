@@ -26,8 +26,19 @@ def count_trt(actions):
     return sum([1 for a in actions if a == 1])
 
 
+from math import exp, atan, pi
+
+
+def sigmoid(x):
+    return 1.0 / (1 + exp(-15.0 * (x - 0.4)))
+
+
+def attain(x):
+    return (1 / pi) * atan(6.0 * (x - 0.4)) + 0.5
+
+
 def create_features(user, wanted_scenario='F'):
-    scenarios, actions, gains, votes1, votes2, votes3, total_votes = user
+    scenarios, actions, gains, votes1, votes2, votes3, total_votes, ID = user
     result_arr = []
     for index, vote_result in enumerate(izip(scenarios, actions, gains)):
         s, a, g = vote_result
@@ -36,21 +47,16 @@ def create_features(user, wanted_scenario='F'):
                 lambda x: (3 - x),
                 actions[:index] + actions[index + 1:]))
 
-            if g > 0:
-                smart_cmp = a == 2
-            else:
-                smart_cmp = a == 1
-
-            result_arr.append(
-                               [mean_action_value,
+            result_arr.append([mean_action_value,
                                np.mean(gains[:index] + gains[index + 1:]),
                                float(votes1[index] - votes2[index]) / total_votes[index],
                                float(votes1[index]) / votes2[index],
                                g,
-                               smart_cmp,
                                contain_dlb(scenarios[:index] + scenarios[index + 1:],
                                         actions[:index] + actions[index + 1:]),
                                count_trt(actions[:index] + actions[index + 1:]),
+                               sigmoid(votes1[index] / float(total_votes[index])) / sigmoid(votes2[index] / float(total_votes[index])),
+                               attain(votes1[index] / float(total_votes[index])) / attain(votes2[index] / float(total_votes[index])),
                                a]) # <- result
 
     return result_arr
@@ -72,7 +78,8 @@ def predict_results(data_path, feature, kernel='linear'):
                          [v2 for v2 in
                           voter.apply(lambda row: RANK_DIST[row['Pref3']](row),
                                       axis=1)],
-                         [v2 for v2 in voter['NumVotes']]))
+                         [v2 for v2 in voter['NumVotes']],
+                         ID))
 
     scenario_feature = functools.partial(create_features,
                                          wanted_scenario=feature)
@@ -106,15 +113,17 @@ if __name__ == "__main__":
     data_dir = os.path.join(os.path.abspath('.'), 'OneShot')
     data_path_E = os.path.join(data_dir, 'PreML_E.xlsx')
     data_path_F = os.path.join(data_dir, 'PreML.xlsx')
-    precision_e, recall_e, fmeasure_e = predict_results(data_path_E, 'E', 'poly')
-    precision_f, recall_f, fmeasure_f = predict_results(data_path_F, 'F', 'poly')
+    precision_e, recall_e, fmeasure_e = predict_results(data_path_E, 'E')
+    print 'E results:'
+    print precision_e
+    print recall_e
+    print 'F measure: {}'.format(fmeasure_e)
+
+    precision_f, recall_f, fmeasure_f = predict_results(data_path_F, 'F')
 
     print 'F results:'
     print precision_f
     print recall_f
     print 'F measure: {}'.format(fmeasure_f)
 
-    print 'E results:'
-    print precision_e
-    print recall_e
-    print 'F measure: {}'.format(fmeasure_e)
+
